@@ -6,7 +6,7 @@ import pandas as pd
 st.set_page_config(page_title="Consulta de Existencias - Packsys", layout="wide")
 
 # --- Encabezado con logo ---
-st.image("packsys_logo.png", use_column_width=False)
+st.image("packsys_logo.png", use_container_width=True)
 
 st.title("Consulta de Existencias de Producto")
 
@@ -31,10 +31,10 @@ def preparar_datos():
 
     # Merge claves
     df = df_existencias.merge(df_unificacion, on="Nombre de artículo", how="left")
-    df["Item principal"].fillna(df["Nombre de artículo"], inplace=True)
+    df["Item principal"] = df["Item principal"].fillna(df["Nombre de artículo"])
 
     df = df.merge(df_psd.rename(columns={"Nombre del articulo": "Nombre de artículo"}), on="Nombre de artículo", how="left")
-    df["Clave Origen"].fillna(df["Item principal"], inplace=True)
+    df["Clave Origen"] = df["Clave Origen"].fillna(df["Item principal"])
     df["Clave Consolidada"] = df["Clave Origen"]
 
     # Cantidades
