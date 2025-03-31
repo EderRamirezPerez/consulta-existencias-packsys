@@ -6,7 +6,7 @@ import pandas as pd
 st.set_page_config(page_title="Consulta de Existencias - Packsys", layout="wide")
 
 # --- Encabezado con logo ---
-st.image("packsys_logo.png", use_container_width=True)
+st.image("packsys_logo.png", width=300)
 
 st.title("Consulta de Existencias de Producto")
 
