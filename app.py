@@ -48,7 +48,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- Sesión Streamlit ---
+# --- Sesion Streamlit ---
 if "autenticado" not in st.session_state:
     st.session_state.autenticado = False
     st.session_state.last_active = datetime.now()
@@ -61,7 +61,6 @@ def sesion_expirada():
 def verificar_login(usuario, contrasena):
     return usuario == USUARIO_VALIDO and contrasena == CONTRASENA_VALIDA
 
-# --- Login si no está autenticado ---
 if not st.session_state.autenticado or sesion_expirada():
     st.markdown('<div class="big-logo"><img src="https://raw.githubusercontent.com/ederramirezperez/consulta-existencias-packsys/main/packsys_logo.png" /></div>', unsafe_allow_html=True)
     st.markdown('<div class="login-box">', unsafe_allow_html=True)
@@ -83,14 +82,14 @@ if not st.session_state.autenticado or sesion_expirada():
     st.markdown("</div>", unsafe_allow_html=True)
     st.stop()
 
-# Actualizar tiempo de actividad
 st.session_state.last_active = datetime.now()
 
-# --- Código APP de existencias ---
+# --- App existencias ---
 st.image("https://raw.githubusercontent.com/ederramirezperez/consulta-existencias-packsys/main/packsys_logo.png", width=150)
 st.title("🔍 Consulta de existencias por clave o descripción")
 
-# Funciones de lectura
+# Funciones lectura
+
 def es_html(texto):
     return "<html" in texto.lower()
 
@@ -111,55 +110,44 @@ id_existencias = "1Nj9g8E1CJ7euYtHVp_vcbeI6YRKFE0yg"
 id_unificacion = "16aIthDrAUr8fFpCdUEXljKRLC3vZ9XLW"
 id_psd = "1w2JPGhV-hLZWDFbunX7D4ikmCsWlpzFE"
 
-# Carga
-df_existencias = leer_csv_drive(id_existencias)
-df_unificacion = leer_excel_drive(id_unificacion)
-df_psd = leer_excel_drive(id_psd)
-df_catalogo_raw = leer_csv_drive(id_catalogo)
-
-# --- MEJORA 2 y 3: Preprocesamiento de catálogo ---
+# Carga y preprocesamiento
 @st.cache_data
-def preparar_catalogo(df):
+def preparar_catalogo():
+    df = leer_csv_drive(id_catalogo)
     df["descripcion_lower"] = df["Descripción de artículo"].astype(str).str.lower()
     return df
 
-df_catalogo = preparar_catalogo(df_catalogo_raw)
+df_catalogo = preparar_catalogo()
+df_existencias = leer_csv_drive(id_existencias)
+df_unificacion = leer_excel_drive(id_unificacion)
+df_psd = leer_excel_drive(id_psd)
 
-# Limpieza
 for col in ["Nombre de artículo"]:
     df_existencias[col] = df_existencias[col].astype(str).str.strip().str.replace(r"\.$", "", regex=True)
     df_unificacion[col] = df_unificacion[col].astype(str).str.strip().str.replace(r"\.$", "", regex=True)
     df_catalogo[col] = df_catalogo[col].astype(str).str.strip().str.replace(r"\.$", "", regex=True)
 df_psd["Nombre del articulo"] = df_psd["Nombre del articulo"].astype(str).str.strip().str.replace(r"\.$", "", regex=True)
 
-# Merge claves
+# Merge claves y cálculos
 df_merged = df_existencias.merge(df_unificacion, on="Nombre de artículo", how="left")
 df_merged["Item principal"].fillna(df_merged["Nombre de artículo"], inplace=True)
 df_merged = df_merged.merge(df_psd.rename(columns={"Nombre del articulo": "Nombre de artículo"}), on="Nombre de artículo", how="left")
 df_merged["Clave Origen"].fillna(df_merged["Item principal"], inplace=True)
 df_merged["Clave Consolidada"] = df_merged["Clave Origen"]
 
-# Cálculos
 df_merged["Cantidad"] = pd.to_numeric(df_merged["Cantidad"], errors="coerce")
 df_merged["Multiplo con base en UM Clave Origen"] = pd.to_numeric(df_merged["Multiplo con base en UM Clave Origen"], errors="coerce").fillna(1)
 df_merged["Cantidad Ajustada"] = df_merged["Cantidad"] * df_merged["Multiplo con base en UM Clave Origen"]
 
-# Clasificación
 df_merged["Organización de inventario"] = df_merged["Organización de inventario"].astype(str).str.strip().str.upper()
 plataformas = ["MERCADO_LIBRE", "AMAZON"]
 disponibles = ["PSD_CAT", "LOGISTORAGE_MTY", "DHL_CAT", "CUAUTIPARKII", "WHM_MRD", "DHL_PUEBLA", "DHL_GDL", "LOGISTORAGE_TIJ"]
 df_merged["Tipo de Existencia"] = df_merged["Organización de inventario"].apply(lambda x:
     "Existencia en plataformas" if x in plataformas else
-    "Existencia disponible" if x in disponibles else f"Otro ({x})"
-)
+    "Existencia disponible" if x in disponibles else f"Otro ({x})")
 
-# Merge catálogo
-df_merged = df_merged.merge(df_catalogo[[
-    "Nombre de artículo", "Descripción de artículo", "Artículo - Unidad de medida principal",
-    "PK_PZASTARIMA", "PZAS/PAQUETE"
-]], on="Nombre de artículo", how="left")
+df_merged = df_merged.merge(df_catalogo[["Nombre de artículo", "Descripción de artículo", "Artículo - Unidad de medida principal", "PK_PZASTARIMA", "PZAS/PAQUETE"]], on="Nombre de artículo", how="left")
 
-# Conversión
 def calcular_conversiones(row):
     piezas = row["Cantidad Ajustada"]
     tarima = row["PK_PZASTARIMA"]
@@ -171,14 +159,11 @@ def calcular_conversiones(row):
     ])
 df_merged[["Piezas", "Tarimas", "Paquetes"]] = df_merged.apply(calcular_conversiones, axis=1)
 
-# Agrupación
-df_stock_real = df_merged.groupby(["Clave Consolidada", "Organización de inventario"], as_index=False)[
-    ["Cantidad Ajustada", "Piezas", "Tarimas", "Paquetes"]].sum()
+df_stock_real = df_merged.groupby(["Clave Consolidada", "Organización de inventario"], as_index=False)[["Cantidad Ajustada", "Piezas", "Tarimas", "Paquetes"]].sum()
 df_existencias_tipo = df_merged.groupby(["Clave Consolidada", "Tipo de Existencia"], as_index=False)["Cantidad Ajustada"].sum()
 
-# --- MEJORA 1, 2, 3, 4: Búsqueda optimizada ---
 col1, col2 = st.columns(2)
-clave_input = col1.text_input("🔑 Buscar por Clave Consolidada:")
+clave_input = col1.text_input("🔑 Buscar por Clave Consolidada:", key="clave_input")
 desc_input = col2.text_input("📝 Buscar por Descripción (parte del texto):")
 
 clave_seleccionada = None
@@ -192,13 +177,13 @@ if desc_input:
         if not fila.empty:
             clave_seleccionada = fila["Nombre de artículo"].values[0]
             st.success(f"🔗 Clave encontrada: {clave_seleccionada}")
+            st.session_state["clave_input"] = ""
     else:
         st.warning("❌ No se encontraron coincidencias con esa descripción.")
 
 if clave_input:
     clave_seleccionada = clave_input.strip()
 
-# Mostrar resultados
 if clave_seleccionada:
     resultado = df_stock_real[df_stock_real["Clave Consolidada"] == clave_seleccionada]
     resultado_tipo = df_existencias_tipo[df_existencias_tipo["Clave Consolidada"] == clave_seleccionada]
