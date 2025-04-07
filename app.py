@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 import requests
@@ -68,12 +67,15 @@ def get_id(nombre_archivo):
         st.warning(f"⚠️ No se encontró ID para '{nombre_archivo}' en el mapa.")
         return None
 
-# Cargar archivos individuales con depuración
+# 🔁 Dinámicos desde el mapa
 id_catalogo = get_id("Catalogo de Productos.csv")
 id_existencias = get_id("Existencias Inventario Disponible Localizador.csv")
-id_unificacion = get_id("Unificación de claves.xlsx")
-id_psd = get_id("PSD multiplicacion de claves.xlsx")
 
+# 🔒 Fijos (nunca cambian)
+id_unificacion = "16aIthDrAUr8fFpCdUEXljKRLC3vZ9XLW"
+id_psd = "1w2JPGhV-hLZWDFbunX7D4ikmCsWlpzFE"
+
+# Cargar archivos
 df_catalogo = leer_csv_drive(id_catalogo, "Catalogo de Productos")
 df_existencias = leer_csv_drive(id_existencias, "Existencias Inventario")
 df_unificacion = leer_excel_drive(id_unificacion, "Unificación de claves")
