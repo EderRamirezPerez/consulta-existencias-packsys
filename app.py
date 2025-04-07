@@ -2,20 +2,102 @@ import streamlit as st
 import pandas as pd
 import requests
 import io
+from datetime import datetime, timedelta
+
+# --- Configuración de acceso ---
+USUARIO_VALIDO = "analista02@packsys.com"
+CONTRASENA_VALIDA = "EPerez#02"
+EXPIRACION_MINUTOS = 15
 
 st.set_page_config(page_title="Consulta de Existencias Packsys", layout="wide")
-st.image("https://raw.githubusercontent.com/ederramirezperez/consulta-existencias-packsys/main/packsys_logo.png", width=400)
-st.title("🔍 Consulta de existencias")
 
-# Funciones para leer archivos
+# --- Estilos personalizados ---
+st.markdown("""
+    <style>
+    .big-logo img {
+        display: block;
+        margin-left: auto;
+        margin-right: auto;
+        width: 300px;
+        margin-top: 30px;
+        margin-bottom: 10px;
+    }
+    .login-box {
+        background-color: #f9f9f9;
+        padding: 2rem;
+        border-radius: 15px;
+        box-shadow: 0px 0px 15px rgba(0,0,0,0.1);
+        max-width: 400px;
+        margin: auto;
+        text-align: center;
+    }
+    .stTextInput>div>div>input {
+        padding: 0.75rem;
+        font-size: 1.1rem;
+    }
+    .stButton>button {
+        padding: 0.5rem 1rem;
+        font-size: 1.1rem;
+        border-radius: 8px;
+        background-color: #004AAD;
+        color: white;
+    }
+    .stButton>button:hover {
+        background-color: #003580;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# --- Sesión Streamlit ---
+if "autenticado" not in st.session_state:
+    st.session_state.autenticado = False
+    st.session_state.last_active = datetime.now()
+
+def sesion_expirada():
+    if "last_active" in st.session_state:
+        return datetime.now() - st.session_state.last_active > timedelta(minutes=EXPIRACION_MINUTOS)
+    return True
+
+def verificar_login(usuario, contrasena):
+    return usuario == USUARIO_VALIDO and contrasena == CONTRASENA_VALIDA
+
+# --- Login si no está autenticado ---
+if not st.session_state.autenticado or sesion_expirada():
+    st.markdown('<div class="big-logo"><img src="https://raw.githubusercontent.com/ederramirezperez/consulta-existencias-packsys/main/packsys_logo.png" /></div>', unsafe_allow_html=True)
+    st.markdown('<div class="login-box">', unsafe_allow_html=True)
+
+    st.subheader("🔐 Inicia sesión para acceder a Packsys")
+    usuario = st.text_input("Correo electrónico", placeholder="ejemplo@correo.com")
+    contrasena = st.text_input("Contraseña", type="password", placeholder="••••••••")
+    login = st.button("Iniciar sesión")
+
+    if login:
+        if verificar_login(usuario, contrasena):
+            st.session_state.autenticado = True
+            st.session_state.last_active = datetime.now()
+            st.success("✅ Acceso concedido. Redirigiendo...")
+            st.experimental_rerun()
+        else:
+            st.error("❌ Credenciales incorrectas")
+
+    st.markdown("</div>", unsafe_allow_html=True)
+    st.stop()
+
+# Actualizar tiempo de actividad
+st.session_state.last_active = datetime.now()
+
+# --- Código APP de existencias ---
+st.image("https://raw.githubusercontent.com/ederramirezperez/consulta-existencias-packsys/main/packsys_logo.png", width=150)
+st.title("🔍 Consulta de existencias por clave o descripción")
+
+# Funciones
 def es_html(texto):
-    return "<html" in texto.lower() or "<!doctype" in texto.lower()
+    return "<html" in texto.lower()
 
 def leer_csv_drive(file_id):
     url = f"https://drive.google.com/uc?id={file_id}&export=download"
     response = requests.get(url)
-    if es_html(response.text):
-        return pd.DataFrame()
+    if es_html(response.text): return pd.DataFrame()
     return pd.read_csv(io.StringIO(response.text), encoding="utf-8", on_bad_lines="skip", engine="python")
 
 def leer_excel_drive(file_id):
@@ -23,13 +105,13 @@ def leer_excel_drive(file_id):
     response = requests.get(url)
     return pd.read_excel(io.BytesIO(response.content), sheet_name=0)
 
-# IDs Drive
+# IDs de archivos
 id_catalogo = "1doNsIfQbibKJyKjC1PWGrifmDpXqiKZv"
 id_existencias = "1Nj9g8E1CJ7euYtHVp_vcbeI6YRKFE0yg"
 id_unificacion = "16aIthDrAUr8fFpCdUEXljKRLC3vZ9XLW"
 id_psd = "1w2JPGhV-hLZWDFbunX7D4ikmCsWlpzFE"
 
-# Cargar datos
+# Carga
 df_existencias = leer_csv_drive(id_existencias)
 df_unificacion = leer_excel_drive(id_unificacion)
 df_psd = leer_excel_drive(id_psd)
@@ -40,7 +122,6 @@ for col in ["Nombre de artículo"]:
     df_existencias[col] = df_existencias[col].astype(str).str.strip().str.replace(r"\.$", "", regex=True)
     df_unificacion[col] = df_unificacion[col].astype(str).str.strip().str.replace(r"\.$", "", regex=True)
     df_catalogo[col] = df_catalogo[col].astype(str).str.strip().str.replace(r"\.$", "", regex=True)
-
 df_psd["Nombre del articulo"] = df_psd["Nombre del articulo"].astype(str).str.strip().str.replace(r"\.$", "", regex=True)
 
 # Merge claves
@@ -50,30 +131,24 @@ df_merged = df_merged.merge(df_psd.rename(columns={"Nombre del articulo": "Nombr
 df_merged["Clave Origen"].fillna(df_merged["Item principal"], inplace=True)
 df_merged["Clave Consolidada"] = df_merged["Clave Origen"]
 
-# Cantidades
+# Cálculos
 df_merged["Cantidad"] = pd.to_numeric(df_merged["Cantidad"], errors="coerce")
-df_merged["Multiplo con base en UM Clave Origen"] = pd.to_numeric(df_merged["Multiplo con base en UM Clave Origen"], errors="coerce")
-df_merged["Multiplo con base en UM Clave Origen"].fillna(1, inplace=True)
+df_merged["Multiplo con base en UM Clave Origen"] = pd.to_numeric(df_merged["Multiplo con base en UM Clave Origen"], errors="coerce").fillna(1)
 df_merged["Cantidad Ajustada"] = df_merged["Cantidad"] * df_merged["Multiplo con base en UM Clave Origen"]
 
-df_merged["Organización de inventario"] = df_merged["Organización de inventario"].astype(str).str.strip().str.upper()
-
 # Clasificación
+df_merged["Organización de inventario"] = df_merged["Organización de inventario"].astype(str).str.strip().str.upper()
 plataformas = ["MERCADO_LIBRE", "AMAZON"]
 disponibles = ["PSD_CAT", "LOGISTORAGE_MTY", "DHL_CAT", "CUAUTIPARKII", "WHM_MRD", "DHL_PUEBLA", "DHL_GDL", "LOGISTORAGE_TIJ"]
 df_merged["Tipo de Existencia"] = df_merged["Organización de inventario"].apply(lambda x:
     "Existencia en plataformas" if x in plataformas else
-    "Existencia disponible" if x in disponibles else
-    f"Otro ({x})"
+    "Existencia disponible" if x in disponibles else f"Otro ({x})"
 )
 
 # Merge catálogo
 df_merged = df_merged.merge(df_catalogo[[
-    "Nombre de artículo",
-    "Descripción de artículo",
-    "Artículo - Unidad de medida principal",
-    "PK_PZASTARIMA",
-    "PZAS/PAQUETE"
+    "Nombre de artículo", "Descripción de artículo", "Artículo - Unidad de medida principal",
+    "PK_PZASTARIMA", "PZAS/PAQUETE"
 ]], on="Nombre de artículo", how="left")
 
 # Conversión
@@ -86,18 +161,17 @@ def calcular_conversiones(row):
         piezas / tarima if pd.notna(tarima) and tarima > 0 else None,
         piezas / paquete if pd.notna(paquete) and paquete > 0 else None
     ])
-
 df_merged[["Piezas", "Tarimas", "Paquetes"]] = df_merged.apply(calcular_conversiones, axis=1)
 
-# Agrupaciones
+# Agrupación
 df_stock_real = df_merged.groupby(["Clave Consolidada", "Organización de inventario"], as_index=False)[
     ["Cantidad Ajustada", "Piezas", "Tarimas", "Paquetes"]].sum()
 df_existencias_tipo = df_merged.groupby(["Clave Consolidada", "Tipo de Existencia"], as_index=False)["Cantidad Ajustada"].sum()
 
-# ------------------ Interfaz ------------------
+# Búsqueda
 col1, col2 = st.columns(2)
-clave_input = col1.text_input("Buscar por Clave Consolidada:")
-desc_input = col2.text_input("Buscar por Descripción:")
+clave_input = col1.text_input("🔑 Buscar por Clave Consolidada:")
+desc_input = col2.text_input("📝 Buscar por Descripción (parte del texto):")
 
 clave_seleccionada = None
 
@@ -122,7 +196,6 @@ if clave_seleccionada:
 
     if not resultado.empty:
         st.success(f"✅ Existencias reales de '{clave_seleccionada}': {resultado['Cantidad Ajustada'].sum():,.2f} unidades")
-
         st.subheader("📦 Desglose por almacén")
         st.dataframe(resultado)
 
@@ -134,7 +207,6 @@ if clave_seleccionada:
             piezas = df_tipo["Piezas"].sum()
             tarimas = df_tipo["Tarimas"].sum()
             paquetes = df_tipo["Paquetes"].sum()
-
             st.markdown(f"### 🔄 Conversión de unidades - {tipo}")
             st.markdown(f"- 🧩 **Piezas**: {piezas:,.2f}")
             st.markdown(f"- 🏗️ **Tarimas**: {tarimas:,.2f}")
