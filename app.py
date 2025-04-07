@@ -76,7 +76,8 @@ if not st.session_state.autenticado or sesion_expirada():
             st.session_state.autenticado = True
             st.session_state.last_active = datetime.now()
             st.success("✅ Acceso concedido. Redirigiendo...")
-            st.experimental_rerun()
+            st.success("✅ Acceso concedido. Redirige manualmente si no avanza...")
+            st.stop()
         else:
             st.error("❌ Credenciales incorrectas")
 
