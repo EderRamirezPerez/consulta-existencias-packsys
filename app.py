@@ -76,7 +76,7 @@ if not st.session_state.autenticado or sesion_expirada():
             st.session_state.autenticado = True
             st.session_state.last_active = datetime.now()
             st.success("✅ Acceso concedido. Puedes continuar.")
-            st.stop()  # <<<<< Aquí corregimos el error
+            st.stop()
         else:
             st.error("❌ Credenciales incorrectas")
 
@@ -90,7 +90,7 @@ st.session_state.last_active = datetime.now()
 st.image("https://raw.githubusercontent.com/ederramirezperez/consulta-existencias-packsys/main/packsys_logo.png", width=150)
 st.title("🔍 Consulta de existencias por clave o descripción")
 
-# Funciones
+# Funciones de lectura
 def es_html(texto):
     return "<html" in texto.lower()
 
@@ -115,7 +115,15 @@ id_psd = "1w2JPGhV-hLZWDFbunX7D4ikmCsWlpzFE"
 df_existencias = leer_csv_drive(id_existencias)
 df_unificacion = leer_excel_drive(id_unificacion)
 df_psd = leer_excel_drive(id_psd)
-df_catalogo = leer_csv_drive(id_catalogo)
+df_catalogo_raw = leer_csv_drive(id_catalogo)
+
+# --- MEJORA 2 y 3: Preprocesamiento de catálogo ---
+@st.cache_data
+def preparar_catalogo(df):
+    df["descripcion_lower"] = df["Descripción de artículo"].astype(str).str.lower()
+    return df
+
+df_catalogo = preparar_catalogo(df_catalogo_raw)
 
 # Limpieza
 for col in ["Nombre de artículo"]:
@@ -168,7 +176,7 @@ df_stock_real = df_merged.groupby(["Clave Consolidada", "Organización de invent
     ["Cantidad Ajustada", "Piezas", "Tarimas", "Paquetes"]].sum()
 df_existencias_tipo = df_merged.groupby(["Clave Consolidada", "Tipo de Existencia"], as_index=False)["Cantidad Ajustada"].sum()
 
-# Búsqueda
+# --- MEJORA 1, 2, 3, 4: Búsqueda optimizada ---
 col1, col2 = st.columns(2)
 clave_input = col1.text_input("🔑 Buscar por Clave Consolidada:")
 desc_input = col2.text_input("📝 Buscar por Descripción (parte del texto):")
@@ -177,18 +185,20 @@ clave_seleccionada = None
 
 if desc_input:
     desc_input = desc_input.strip().lower()
-    opciones = df_catalogo[df_catalogo["Descripción de artículo"].str.lower().str.contains(desc_input)]
+    opciones = df_catalogo[df_catalogo["descripcion_lower"].str.contains(desc_input, na=False)]
     if not opciones.empty:
         desc_elegida = st.selectbox("📌 Coincidencias encontradas:", opciones["Descripción de artículo"].unique())
-        fila = opciones[opciones["Descripción de artículo"] == desc_elegida].iloc[0]
-        clave_seleccionada = fila["Nombre de artículo"]
-        st.success(f"🔗 Clave encontrada: {clave_seleccionada}")
+        fila = opciones[opciones["Descripción de artículo"] == desc_elegida].head(1)
+        if not fila.empty:
+            clave_seleccionada = fila["Nombre de artículo"].values[0]
+            st.success(f"🔗 Clave encontrada: {clave_seleccionada}")
     else:
         st.warning("❌ No se encontraron coincidencias con esa descripción.")
 
 if clave_input:
     clave_seleccionada = clave_input.strip()
 
+# Mostrar resultados
 if clave_seleccionada:
     resultado = df_stock_real[df_stock_real["Clave Consolidada"] == clave_seleccionada]
     resultado_tipo = df_existencias_tipo[df_existencias_tipo["Clave Consolidada"] == clave_seleccionada]
