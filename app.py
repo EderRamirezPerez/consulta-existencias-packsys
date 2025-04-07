@@ -8,7 +8,7 @@ st.set_page_config(page_title="Consulta de Existencias Packsys", layout="wide")
 # Logo Packsys
 st.image("https://raw.githubusercontent.com/ederramirezperez/consulta-existencias-packsys/main/packsys_logo.png", width=200)
 
-st.title("🔍 Consulta de existencias por clave consolidada")
+st.title("🔍 Consulta de existencias por clave")
 
 # Funciones para leer archivos desde Drive
 def es_html(texto):
@@ -98,7 +98,7 @@ df_stock_real = df_merged.groupby(["Clave Consolidada", "Organización de invent
 df_existencias_tipo = df_merged.groupby(["Clave Consolidada", "Tipo de Existencia"], as_index=False)["Cantidad Ajustada"].sum()
 
 # --- Interfaz Streamlit ---
-clave_input = st.text_input("🔑 Ingresa la clave del producto (Clave Consolidada):")
+clave_input = st.text_input("Ingresa la clave del producto:")
 
 if clave_input:
     clave = clave_input.strip()
