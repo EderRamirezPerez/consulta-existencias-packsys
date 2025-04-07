@@ -5,7 +5,7 @@ import io
 
 st.set_page_config(page_title="Consulta de Existencias Packsys", layout="wide")
 st.image("https://raw.githubusercontent.com/ederramirezperez/consulta-existencias-packsys/main/packsys_logo.png", width=400)
-st.title("🔍 Consulta de existencias por clave consolidada o descripción")
+st.title("🔍 Consulta de existencias")
 
 # Funciones para leer archivos
 def es_html(texto):
@@ -96,8 +96,8 @@ df_existencias_tipo = df_merged.groupby(["Clave Consolidada", "Tipo de Existenci
 
 # ------------------ Interfaz ------------------
 col1, col2 = st.columns(2)
-clave_input = col1.text_input("🔑 Buscar por Clave Consolidada:")
-desc_input = col2.text_input("📝 Buscar por Descripción (parte del texto):")
+clave_input = col1.text_input("Buscar por Clave Consolidada:")
+desc_input = col2.text_input("Buscar por Descripción:")
 
 clave_seleccionada = None
 
