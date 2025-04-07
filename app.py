@@ -4,7 +4,7 @@ import requests
 import io
 
 st.set_page_config(page_title="Consulta de Existencias Packsys", layout="wide")
-st.image("https://raw.githubusercontent.com/ederramirezperez/consulta-existencias-packsys/main/packsys_logo.png", width=300)
+st.image("https://raw.githubusercontent.com/ederramirezperez/consulta-existencias-packsys/main/packsys_logo.png", width=400)
 st.title("🔍 Consulta de existencias por clave consolidada o descripción")
 
 # Funciones para leer archivos
