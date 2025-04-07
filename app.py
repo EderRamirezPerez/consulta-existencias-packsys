@@ -177,7 +177,8 @@ if desc_input:
         if not fila.empty:
             clave_seleccionada = fila["Nombre de artículo"].values[0]
             st.success(f"🔗 Clave encontrada: {clave_seleccionada}")
-            st.session_state["clave_input"] = ""
+            st.session_state.pop("clave_input", None)
+            st.experimental_rerun()
     else:
         st.warning("❌ No se encontraron coincidencias con esa descripción.")
 
