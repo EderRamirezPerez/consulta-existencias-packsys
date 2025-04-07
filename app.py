@@ -75,9 +75,8 @@ if not st.session_state.autenticado or sesion_expirada():
         if verificar_login(usuario, contrasena):
             st.session_state.autenticado = True
             st.session_state.last_active = datetime.now()
-            st.success("✅ Acceso concedido. Redirigiendo...")
-            st.success("✅ Acceso concedido. Redirige manualmente si no avanza...")
-            st.stop()
+            st.success("✅ Acceso concedido. Puedes continuar.")
+            st.stop()  # <<<<< Aquí corregimos el error
         else:
             st.error("❌ Credenciales incorrectas")
 
