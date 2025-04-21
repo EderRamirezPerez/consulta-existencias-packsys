@@ -5,7 +5,6 @@ from googleapiclient.discovery import build
 import io
 from openpyxl import load_workbook
 from googleapiclient.http import MediaIoBaseDownload
-from streamlit_excell_editor import excel_editor
 
 # --- Autenticación con Google Drive ---
 creds = service_account.Credentials.from_service_account_info(
@@ -54,8 +53,7 @@ elif opcion == "Archivo":
 
         st.markdown("🛠 **Puedes editar los valores en la tabla.** Esto no afecta el archivo en Drive.")
 
-        # Editor tipo Excel
-        df_editado = excel_editor(df_hoja)
+        df_editado = st.data_editor(df_hoja, use_container_width=True, num_rows="dynamic")
         st.dataframe(df_editado)
 
     except Exception as e:
