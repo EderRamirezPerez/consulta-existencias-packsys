@@ -5,7 +5,7 @@ from googleapiclient.discovery import build
 import io
 from openpyxl import load_workbook
 from googleapiclient.http import MediaIoBaseDownload
-from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
+from streamlit_excell_editor import excel_editor
 
 # --- Autenticación con Google Drive ---
 creds = service_account.Credentials.from_service_account_info(
@@ -54,22 +54,8 @@ elif opcion == "Archivo":
 
         st.markdown("🛠 **Puedes editar los valores en la tabla.** Esto no afecta el archivo en Drive.")
 
-        gb = GridOptionsBuilder.from_dataframe(df_hoja)
-        gb.configure_default_column(editable=True, resizable=True)
-        gb.configure_grid_options(domLayout='normal')
-        grid_options = gb.build()
-
-        grid_response = AgGrid(
-            df_hoja,
-            gridOptions=grid_options,
-            update_mode=GridUpdateMode.MODEL_CHANGED,
-            fit_columns_on_grid_load=True,
-            enable_enterprise_modules=False,
-            height=500,
-            reload_data=False
-        )
-
-        df_editado = grid_response["data"]
+        # Editor tipo Excel
+        df_editado = excel_editor(df_hoja)
         st.dataframe(df_editado)
 
     except Exception as e:
