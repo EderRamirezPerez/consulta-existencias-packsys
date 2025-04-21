@@ -1,7 +1,0 @@
-streamlit
-pandas
-openpyxl
-google-api-python-client
-google-auth
-google-auth-oauthlib
-st-aggrid
