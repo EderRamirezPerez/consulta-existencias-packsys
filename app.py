@@ -1,44 +1,25 @@
 import streamlit as st
-import streamlit.components.v1 as components
+import pandas as pd
 
-# -----------------------------------------------
-# Configuración visual
-# -----------------------------------------------
-st.set_page_config(page_title="Dashboard de Packsys", layout="wide")
-st.image("packsys_logo.png", width=200)
+# Configuración de la app
+st.set_page_config(page_title="Consulta de Existencias - Packsys", layout="wide")
+st.image("packsys_logo.png", width=300)
+st.title("Consulta de Existencias de Producto")
 
-# Inicio de sesión simulado (placeholder)
-st.success("Inicio de sesión exitoso")
+# Enlaces corregidos de Google Drive
+urls = {
+    "existencias": "https://drive.google.com/uc?id=1-HP94DB2jNSqs8lv7XDAeQ3DfoQuggfX",
+    "catalogo": "https://drive.google.com/uc?id=1-Bp-WWIMhWMeEdA5fu-o4ybjc4W7G4d0",
+    "psd": "https://drive.google.com/uc?export=download&id=1w2JPGhV-hLZWDFbunX7D4ikmCsWlpzFE",
+    "unificacion": "https://drive.google.com/uc?export=download&id=16aIthDrAUr8fFpCdUEXljKRLC3vZ9XLW"
+}
 
-# -----------------------------------------------
-# Menú principal
-# -----------------------------------------------
-seccion = st.radio("Selecciona una opción:", ["Existencias", "Detalle", "Archivo"], horizontal=False)
+@st.cache_data
+def cargar_datos():
+    df_existencias = pd.read_csv(urls["existencias"], encoding="utf-8-sig")
+    df_catalogo = pd.read_csv(urls["catalogo"], encoding="utf-8-sig")
+    df_unificacion = pd.read_excel(urls["unificacion"])
+    df_psd = pd.read_excel(urls["psd"])
+    return df_existencias, df_catalogo, df_unificacion, df_psd
 
-# ===============================================
-# EXISTENCIAS (placeholder)
-# ===============================================
-if seccion == "Existencias":
-    st.subheader("📦 Existencias")
-    st.info("Aquí irá el análisis de existencias (pendiente de implementar).")
-
-# ===============================================
-# DETALLE (placeholder)
-# ===============================================
-elif seccion == "Detalle":
-    st.subheader("📋 Detalle")
-    st.warning("Bloque 'Detalle' aún en desarrollo.")
-
-# ===============================================
-# ARCHIVO (iframe Google Sheets estilo Excel)
-# ===============================================
-else:
-    st.subheader("📁 Visualización del libro en Google Sheets (modo vista)")
-
-    sheet_url = (
-        "https://docs.google.com/spreadsheets/d/"
-        "1_9ZBLqZbHOlFTtInZAbju7g3NU20NqMY/preview"
-    )
-
-    components.iframe(sheet_url, height=700, scrolling=True)
-    st.caption("Los cambios que realices aquí solo viven en la sesión; el archivo en Drive permanece intacto.")
+df_existencias, df_catalogo, df_unificacion, df_psd = cargar_datos()
